@@ -767,6 +767,9 @@ def scan_for_flps():
                     new_flp_name = f"{beat_name}_{timestamp}.flp"
                     new_flp_path = os.path.join(beat_folder, new_flp_name)
                     shutil.copy2(flp_path, new_flp_path)
+                    # Also copy as present version (beatname.flp)
+                    present_flp_path = os.path.join(beat_folder, f"{beat_name}.flp")
+                    shutil.copy2(flp_path, present_flp_path)
                     note_filename = filename.replace(".flp", ".txt")
                     note_path = os.path.join(beat_folder, new_flp_name.replace(".flp", ".txt"))
                     # If a matching note exists, copy it; otherwise, create a default note
