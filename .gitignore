@@ -1,0 +1,26 @@
+# Byte-compiled / cache / build files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+build/
+dist/
+*.spec
+
+# VSCode and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# User/project-specific config and secrets
+fl_config.json
+
+# Local project data (user's projects and notes)
+backups/
+notes/
+
+# Google Drive secrets (DO NOT commit your real secrets file)
+client_secrets.json
+
+# Ignore log files
+*.log
