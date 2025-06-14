@@ -304,9 +304,10 @@ def update_folder_list(filtered_beats=None):
     for folder in beats_to_show:
         folder_row = ctk.CTkFrame(folder_listbox, fg_color="transparent")
         folder_row.pack(fill="x", padx=5, pady=2)
+        folder_row.grid_columnconfigure(0, weight=1)
+        folder_row.grid_columnconfigure(1, weight=0)
+        folder_row.grid_columnconfigure(2, weight=0)
         if upload_mode:
-            folder_row.grid_columnconfigure(0, weight=0)
-            folder_row.grid_columnconfigure(1, weight=1)
             var = ctk.BooleanVar(value=folder in selected_beats_for_upload)
             def make_toggle(folder_name):
                 return lambda: (toggle_selected_beat(folder_name), update_folder_list())
@@ -317,7 +318,7 @@ def update_folder_list(filtered_beats=None):
                 width=24,
                 command=make_toggle(folder)
             )
-            checkbox.grid(row=0, column=0, padx=(2, 6), sticky="w")
+            checkbox.grid(row=0, column=0, sticky="w", padx=(2, 6))
             btn = ctk.CTkButton(
                 folder_row, text=folder, width=180, anchor="w",
                 font=("Bahnschrift", 12),
@@ -325,11 +326,33 @@ def update_folder_list(filtered_beats=None):
             )
             btn.grid(row=0, column=1, sticky="ew", padx=(0, 2))
         else:
-            btn = ctk.CTkButton(folder_row, text=folder, width=180, anchor="w",
-                                font=("Bahnschrift", 12),
-                                command=lambda f=folder: on_folder_select(f))
-            btn.pack(side="left", fill="x", expand=True, padx=(5, 2))
-            delete_btn = ctk.CTkButton(folder_row,
+            # Beat name button with ellipsis for long names
+            btn = ctk.CTkButton(
+                folder_row,
+                text=folder if len(folder) <= 32 else folder[:29] + "...",
+                width=180,
+                anchor="w",
+                font=("Bahnschrift", 12),
+                command=lambda f=folder: on_folder_select(f)
+            )
+            btn.grid(row=0, column=0, sticky="ew", padx=(5, 2))
+            # Rename button
+            rename_btn = ctk.CTkButton(
+                folder_row,
+                text="✎",
+                width=26,
+                height=26,
+                font=("Segoe UI Symbol", 13),
+                fg_color="#2a7",
+                hover_color="#3c9",
+                corner_radius=6,
+                anchor="center",
+                command=lambda f=folder: rename_beat(f)
+            )
+            rename_btn.grid(row=0, column=1, padx=(2, 2), pady=2)
+            # Delete button
+            delete_btn = ctk.CTkButton(
+                folder_row,
                 text="🗑",
                 width=26,
                 height=26,
@@ -340,7 +363,7 @@ def update_folder_list(filtered_beats=None):
                 anchor="center",
                 command=lambda f=folder: confirm_delete_folder(f)
             )
-            delete_btn.pack(side="right", padx=(4, 4), pady=2)
+            delete_btn.grid(row=0, column=2, padx=(2, 4), pady=2)
 
 def update_versions_list(folder, filtered_versions=None):
     for widget in version_listbox.winfo_children():
@@ -348,10 +371,15 @@ def update_versions_list(folder, filtered_versions=None):
     if not folder:
         return
     versions_to_show = filtered_versions if filtered_versions is not None else get_versions_for_beat(folder)
+
     for version_file in versions_to_show:
         version_row = ctk.CTkFrame(version_listbox, fg_color="transparent")
         version_row.pack(fill="x", padx=5, pady=2)
+        version_row.grid_columnconfigure(0, weight=1) 
+        version_row.grid_columnconfigure(1, weight=0)
+        version_row.grid_columnconfigure(2, weight=0)
         is_present_version = version_file == f"{folder}.flp"
+
         btn = ctk.CTkButton(
             version_row,
             text=version_file,
@@ -361,8 +389,9 @@ def update_versions_list(folder, filtered_versions=None):
             hover_color="#1b632d" if is_present_version else None,
             command=lambda f=version_file: on_version_select(folder, f)
         )
-        btn.pack(side="left", fill="x", expand=True, padx=(5, 2))
+        btn.grid(row=0, column=0, sticky="ew", padx=(5, 2))
         btn.bind("<Double-Button-1>", lambda event, f=version_file: open_in_fl(folder, f))
+
         if not is_present_version:
             revert_btn = ctk.CTkButton(
                 version_row,
@@ -375,7 +404,7 @@ def update_versions_list(folder, filtered_versions=None):
                 corner_radius=6,
                 command=lambda f=version_file: confirm_revert_version(folder, f)
             )
-            revert_btn.pack(side="left", padx=(2, 1))
+            revert_btn.grid(row=0, column=1, padx=(2, 1), pady=2)
             delete_btn = ctk.CTkButton(
                 version_row,
                 text="🗑",
@@ -387,12 +416,40 @@ def update_versions_list(folder, filtered_versions=None):
                 corner_radius=6,
                 command=lambda f=version_file: confirm_delete_version(folder, f)
             )
-            delete_btn.pack(side="right", padx=(1, 5))
+            delete_btn.grid(row=0, column=2, padx=(1, 5), pady=2)
 
 def load_folders():
     global beats_data_cache
     beats_data_cache = load_all_beats_data()
     update_folder_list()
+
+def rename_beat(folder):
+    dialog = ctk.CTkInputDialog(
+        title="Rename Beat",
+        text=f"Enter new name for '{folder}':"
+    )
+    new_name = dialog.get_input()
+    if not new_name or new_name == folder:
+        return
+    old_folder_path = os.path.join("backups", folder)
+    new_folder_path = os.path.join("backups", new_name)
+    if os.path.exists(new_folder_path):
+        messagebox.showerror("Error", f"A beat named '{new_name}' already exists.")
+        return
+    # Rename the folder
+    os.rename(old_folder_path, new_folder_path)
+    # Rename all files inside
+    for filename in os.listdir(new_folder_path):
+        old_file = os.path.join(new_folder_path, filename)
+        # Replace old beat name with new in filenames
+        new_file = os.path.join(
+            new_folder_path,
+            filename.replace(folder, new_name, 1)
+        )
+        os.rename(old_file, new_file)
+    refresh_all()
+    messagebox.showinfo("Renamed", f"'{folder}' has been renamed to '{new_name}'.")
+
 
 def confirm_delete_folder(folder):
     if messagebox.askyesno("Delete Project", f"Are you sure you want to delete '{folder}' and all its versions?"):
@@ -447,6 +504,30 @@ def on_version_select(folder, version_file):
     edit_note_btn.configure(state="normal")
     save_note_btn.configure(state="normal")
 
+    # --- Set version date label ---
+    def format_datetime(dt):
+        if os.name != "nt":
+            date_str = dt.strftime("%B %-d, %Y")
+        else:
+            date_str = dt.strftime("%B %#d, %Y")
+        time_str = dt.strftime("%I:%M %p").lstrip("0")
+        return f"{date_str} @ {time_str}"
+
+    if version_file == f"{folder}.flp":
+        file_path = os.path.join("backups", folder, version_file)
+        if os.path.exists(file_path):
+            dt = datetime.fromtimestamp(os.path.getmtime(file_path))
+            version_date_label.configure(text=f"Last updated: {format_datetime(dt)}")
+        else:
+            version_date_label.configure(text="Last updated: Unknown")
+    else:
+        match = re.search(r"_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})", version_file)
+        if match:
+            dt = datetime.strptime(match.group(1), "%Y-%m-%d_%H-%M")
+            version_date_label.configure(text=f"Version Date: {format_datetime(dt)}")
+        else:
+            version_date_label.configure(text="Version Date: Unknown")
+
 def enable_note_edit():
     note_display.configure(state="normal")
 
@@ -495,9 +576,9 @@ app.iconbitmap(resource_path("flowtrack_icon.ico"))
 
 main_frame = ctk.CTkFrame(app)
 main_frame.pack(expand=True, fill="both", padx=15, pady=15)
-main_frame.grid_columnconfigure(0, weight=2, uniform="group")
-main_frame.grid_columnconfigure(1, weight=3, uniform="group")
-main_frame.grid_columnconfigure(2, weight=2, uniform="group")
+main_frame.grid_columnconfigure(0, weight=32, uniform="group")
+main_frame.grid_columnconfigure(1, weight=40, uniform="group")
+main_frame.grid_columnconfigure(2, weight=30, uniform="group")
 main_frame.grid_rowconfigure(0, weight=1)
 main_frame.grid_rowconfigure(1, weight=0)
 
@@ -537,6 +618,15 @@ note_label.grid(row=0, column=0, sticky="ew", padx=10, pady=(12, 0))
 note_display = ctk.CTkTextbox(note_frame, wrap="word")
 note_display.grid(row=1, column=0, sticky="nsew", padx=10, pady=(10, 10))
 note_display.configure(state="disabled")
+
+version_date_label = ctk.CTkLabel(
+    note_frame,
+    text="",
+    font=("Bahnschrift", 12),
+    anchor="w",
+    text_color="#cccccc"
+)
+version_date_label.grid(row=2, column=0, sticky="w", padx=10, pady=(0, 5))
 
 note_buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
 note_buttons_frame.grid(row=1, column=2, sticky="ew", pady=(5, 10), padx=(0, 0))
@@ -645,6 +735,7 @@ def scan_for_flps():
             refresh_all()
         except Exception as e:
             messagebox.showerror("Google Drive Error", str(e))
+    
     def from_local():
         popup.destroy()
         folder = filedialog.askdirectory(title="Select Folder to Scan for .flp Files")
@@ -656,6 +747,10 @@ def scan_for_flps():
                 found_notes = {}
                 for root, _, files in os.walk(folder):
                     for file in files:
+                        # Skip autosave and overwritten files
+                        lowered = file.lower()
+                        if ("autosaved at" in lowered) or ("overwritten at" in lowered):
+                            continue
                         if file.endswith(".flp"):
                             found_flps.append(os.path.join(root, file))
                         elif file.endswith(".txt"):
@@ -674,6 +769,7 @@ def scan_for_flps():
                     shutil.copy2(flp_path, new_flp_path)
                     note_filename = filename.replace(".flp", ".txt")
                     note_path = os.path.join(beat_folder, new_flp_name.replace(".flp", ".txt"))
+                    # If a matching note exists, copy it; otherwise, create a default note
                     if note_filename in found_notes:
                         shutil.copy2(found_notes[note_filename], note_path)
                     else:
