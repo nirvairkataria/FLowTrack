@@ -308,6 +308,9 @@ def update_folder_list(filtered_beats=None):
         folder_row.grid_columnconfigure(1, weight=0)
         folder_row.grid_columnconfigure(2, weight=0)
         if upload_mode:
+            folder_row.grid_columnconfigure(0, weight=0) 
+            folder_row.grid_columnconfigure(1, weight=1)
+
             var = ctk.BooleanVar(value=folder in selected_beats_for_upload)
             def make_toggle(folder_name):
                 return lambda: (toggle_selected_beat(folder_name), update_folder_list())
